@@ -1,5 +1,6 @@
 import struct
 
+FLASH_END = 0x7fff
 
 class Printer(object):
     def __init__(self, memory, start_address, end_address, symbol_table):
@@ -103,6 +104,11 @@ class Printer(object):
             line += ' ' + comment
         print(line)
 
+    def is_print_ascii(self, v):
+        if v > 0x20 and v < 0x7f:
+            return True
+        return False
+
     def print_instruction_line(self, address, inst):
         disasm = inst.to_string(symbols=self.symbol_table.symbols)
         hexdump = (' '.join([ '%02x' % h for h in inst.all_bytes ])).ljust(8)
@@ -114,5 +120,12 @@ class Printer(object):
         if not line.endswith(' '):
             line += ' '
         line += ';%04x  %s' % (address, hexdump)
+        if self.memory[address] in (0x08, 0x18, 0x28, 0x38, 0x48, 0x78, 0x8e): # FIXME list/verify all ops!
+            a16 = self.memory[address+1] + (self.memory[address+2] << 8)
+            if a16 < FLASH_END:
+                val = self.memory[a16]
+                line += f' ; flash[0x{a16:04x}] = 0x{val:02x}'
+                if self.is_print_ascii(self.memory[a16]):
+                    line += f' = \'{chr(self.memory[a16])}\''
 
         print(line)
